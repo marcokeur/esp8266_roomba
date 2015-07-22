@@ -37,10 +37,11 @@
 #include "gpio.h"
 #include "user_interface.h"
 #include "mem.h"
+#include "eagle_soc.h"
 
 #include "roomba.h"
 #include "mqtt_commands.h"
-#include "str_utils.h"
+//#include "str_utils.h"
 
 MQTT_Client mqttClient;
 
@@ -56,11 +57,11 @@ void mqttConnectedCb(uint32_t *args)
 {
 	MQTT_Client* client = (MQTT_Client*)args;
 	INFO("MQTT: Connected\r\n");
-	MQTT_Subscribe(client, "/pit/mqtt/topic/0", 0);
-	MQTT_Subscribe(client, "/pit/roomba/cmd", 1);
+	//MQTT_Subscribe(client, "pit/mqtt/topic/0", 0);
+	MQTT_Subscribe(client, "pit/roomba/cmd", 0);
 	//MQTT_Subscribe(client, "/pit/mqtt/topic/2", 2);
 
-	MQTT_Publish(client, "/pit/mqtt/topic/0", "hello0", 6, 0, 0);
+	MQTT_Publish(client, "pit/mqtt/topic/0", "hello0", 6, 0, 0);
 	//MQTT_Publish(client, "/pit/mqtt/topic/1", "hello1", 6, 1, 0);
 	//MQTT_Publish(client, "/pit/mqtt/topic/2", "hello2", 6, 2, 0);
 
@@ -95,24 +96,25 @@ void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const cha
 
 	INFO("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
 
-	if(topicBuf == "/pit/roomba/cmd"){
+	if(strcmp(topicBuf, "pit/roomba/cmd") == 0){
 		//split the data string into tokens (space delimited)
-		tokens = str_split(dataBuf, ' ');
+//		tokens = str_split(dataBuf, ' ');
 		int command = 0;
 		//compare the first token with known commands
-		if(strcmp(*(tokens + 0), MQTT_WAKEUP) == 0){
+		if(strcmp(dataBuf, MQTT_WAKEUP) == 0){
 			roomba_wakeup();
-		}else if(strcmp(*(tokens + 0), MQTT_CLEAN) == 0){
+		}else if(strcmp(dataBuf, MQTT_CLEAN) == 0){
 			roomba_clean();
-		}else if(strcmp(*(tokens + 0), MQTT_DOCK) == 0){
+		}else if(strcmp(dataBuf, MQTT_DOCK) == 0){
 			roomba_dock();
-		}else if(strcmp(*(tokens + 0), MQTT_SLEEP) == 0){
+		}else if(strcmp(dataBuf, MQTT_SLEEP) == 0){
 			roomba_sleep();
-		}else if(strcmp(*(tokens + 0), MQTT_MOTORS) == 0){		//controls the cleaning motors (main brush, vaccum, side brush)
-			roomba_motors(*(tokens + 1));
-		}else if(strcmp(*(tokens + 0), MQTT_PLAY_SONG) == 0){
+		}else if(strcmp(dataBuf, MQTT_MOTORS) == 0){		//controls the cleaning motors (main brush, vaccum, side brush)
+			//roomba_motors(*(tokens + 1));
+		}else if(strcmp(dataBuf, MQTT_PLAY_SONG) == 0){
 			roomba_program_songs();
-			command = atoi(*(tokens + 1));
+			//command = atoi(*(tokens + 1));
+			command = 0;
 			os_printf("Command is: %d\n", command);
 			roomba_play_song(command);
 		}else{
@@ -124,11 +126,11 @@ void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const cha
 	os_free(dataBuf);
 
 	//free mem
-	int i;
-	for(i = 0; *(tokens + i); i++){
-		free(*(tokens + i));
-	}
-	os_free(tokens);
+	//int i;
+	//for(i = 0; *(tokens + i); i++){
+	//	free(*(tokens + i));
+	//}
+	//os_free(tokens);
 }
 
 
@@ -138,6 +140,14 @@ void user_init(void)
 	os_delay_us(1000000);
 
 	CFG_Load();
+
+	// Initialize the GPIO subsystem.
+    gpio_init();
+
+    //Set GPIO2 to output mode
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+    //Set GPIO2 low
+    gpio_output_set(0, ROOMBA_WAKEUP_PIN, ROOMBA_WAKEUP_PIN, 0);
 
 	MQTT_InitConnection(&mqttClient, sysCfg.mqtt_host, sysCfg.mqtt_port, sysCfg.security);
 	//MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);

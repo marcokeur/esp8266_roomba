@@ -1,5 +1,5 @@
-#include "stddef.h"
-#include "string.h"
+//#include "stddef.h"
+//#include "string.h"
 #include "mem.h"
 
 char** str_split(char* a_str, const char a_delim)
@@ -30,7 +30,7 @@ char** str_split(char* a_str, const char a_delim)
        knows where the list of returned strings ends. */
     count++;
 
-    result = os_malloc(sizeof(char*) * count);
+//    result = os_malloc(sizeof(char*) * count);
 
     if (result)
     {

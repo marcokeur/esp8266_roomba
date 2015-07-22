@@ -12,6 +12,6 @@ void roomba_clean(void);
 void roomba_sleep(void);
 
 void roomba_play_song(int);
-void roomba_program_song(void);
+void roomba_program_songs(void);
 
 #endif

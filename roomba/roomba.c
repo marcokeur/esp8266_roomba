@@ -13,6 +13,7 @@
 
 
 void roomba_startup(void) {
+	os_printf("startup");
 	uart_tx_one_char(UART0, START);
 	uart_tx_one_char(UART0, CONTROL);
 	os_delay_us(30000);
@@ -92,7 +93,7 @@ void roomba_drive(unsigned int velocity, unsigned int radius) {
 }
 #endif
 
-void roomba_program_song(){
+void roomba_program_songs(){
     roomba_startup();
 	//start csi
     //uart_tx_one_char(UART0, 128);
