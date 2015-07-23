@@ -41,7 +41,6 @@
 
 #include "roomba.h"
 #include "mqtt_commands.h"
-//#include "str_utils.h"
 
 MQTT_Client mqttClient;
 
@@ -57,13 +56,10 @@ void mqttConnectedCb(uint32_t *args)
 {
 	MQTT_Client* client = (MQTT_Client*)args;
 	INFO("MQTT: Connected\r\n");
-	//MQTT_Subscribe(client, "pit/mqtt/topic/0", 0);
-	MQTT_Subscribe(client, "pit/roomba/cmd", 0);
-	//MQTT_Subscribe(client, "/pit/mqtt/topic/2", 2);
 
-	MQTT_Publish(client, "pit/mqtt/topic/0", "hello0", 6, 0, 0);
-	//MQTT_Publish(client, "/pit/mqtt/topic/1", "hello1", 6, 1, 0);
-	//MQTT_Publish(client, "/pit/mqtt/topic/2", "hello2", 6, 2, 0);
+	MQTT_Subscribe(client, MQTT_ROOMBA_CMD_TOPIC, 0);
+
+	MQTT_Publish(client, MQTT_ROOMBA_STATUS_TOPIC, "started", 6, 0, 0);
 
 }
 
@@ -79,12 +75,43 @@ void mqttPublishedCb(uint32_t *args)
 	INFO("MQTT: Published\r\n");
 }
 
+bool strEquals(const char *str, const char *match)
+{
+	return (strcmp(str, match) == 0);
+
+}
+
+bool strStartsWith(const char *str, const char *pre)
+{
+    size_t lenpre = strlen(pre),
+           lenstr = strlen(str);
+    return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
+}
+
+void get_command(char * buff, char ** command)
+{
+	char *p = buff;
+
+    while( p != NULL ){
+    	p = strchr(p, ' ');
+
+        if( p != NULL){
+        	// Found the delimiter, get next char
+            p++;
+            os_printf("Found command 0x%X\n", *p);
+            *command = p;
+            break;
+        }else{
+            p++;
+        }
+    }
+}
+
+
 void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const char *data, uint32_t data_len)
 {
 	char *topicBuf = (char*)os_zalloc(topic_len+1),
 			*dataBuf = (char*)os_zalloc(data_len+1);
-
-	char **tokens;
 
 	MQTT_Client* client = (MQTT_Client*)args;
 
@@ -96,26 +123,33 @@ void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const cha
 
 	INFO("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
 
-	if(strcmp(topicBuf, "pit/roomba/cmd") == 0){
-		//split the data string into tokens (space delimited)
-//		tokens = str_split(dataBuf, ' ');
-		int command = 0;
+	if(strEquals(topicBuf, MQTT_ROOMBA_CMD_TOPIC) == 0){
 		//compare the first token with known commands
-		if(strcmp(dataBuf, MQTT_WAKEUP) == 0){
+		if(strEquals(dataBuf, MQTT_ROOMBA_CMD_WAKEUP)){
 			roomba_wakeup();
-		}else if(strcmp(dataBuf, MQTT_CLEAN) == 0){
+		}else if(strEquals(dataBuf, MQTT_ROOMBA_CMD_CLEAN)){
 			roomba_clean();
-		}else if(strcmp(dataBuf, MQTT_DOCK) == 0){
+		}else if(strEquals(dataBuf, MQTT_ROOMBA_CMD_DOCK)){
 			roomba_dock();
-		}else if(strcmp(dataBuf, MQTT_SLEEP) == 0){
+		}else if(strEquals(dataBuf, MQTT_ROOMBA_CMD_SLEEP)){
 			roomba_sleep();
-		}else if(strcmp(dataBuf, MQTT_MOTORS) == 0){		//controls the cleaning motors (main brush, vaccum, side brush)
-			//roomba_motors(*(tokens + 1));
-		}else if(strcmp(dataBuf, MQTT_PLAY_SONG) == 0){
+		}else if(strStartsWith(dataBuf, MQTT_ROOMBA_CMD_MOTORS)){		//controls the cleaning motors (main brush, vaccuum, side brush)
+			//get the param
+			char *command;
+			get_command(dataBuf, &command);
+
+			os_printf("Command is: 0x%X\n", *command);
+
+			roomba_motors(command);
+		}else if(strStartsWith(dataBuf, MQTT_ROOMBA_CMD_PLAY_SONG)){
+			//make sure the songs are programmed
 			roomba_program_songs();
-			//command = atoi(*(tokens + 1));
-			command = 0;
-			os_printf("Command is: %d\n", command);
+
+			//get the param
+			char *command;
+			get_command(dataBuf, &command);
+
+			os_printf("Command is: 0x%X\n", *command);
 			roomba_play_song(command);
 		}else{
 			os_printf("Unknown command received: %s at topic %s\n", dataBuf, topicBuf);
@@ -124,13 +158,6 @@ void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const cha
 
 	os_free(topicBuf);
 	os_free(dataBuf);
-
-	//free mem
-	//int i;
-	//for(i = 0; *(tokens + i); i++){
-	//	free(*(tokens + i));
-	//}
-	//os_free(tokens);
 }
 
 

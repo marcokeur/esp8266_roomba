@@ -131,9 +131,9 @@ void roomba_program_songs(){
     uart_tx_one_char(UART0, 32);
 }
 
-void roomba_play_song( int song ){
+void roomba_play_song( char * song ){
 	roomba_startup();
 
 	uart_tx_one_char(UART0, PLAY);		//play song
-    uart_tx_one_char(UART0, song);		//song
+    uart_tx_one_char(UART0, *song);		//song
 }
