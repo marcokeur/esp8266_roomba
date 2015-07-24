@@ -38,13 +38,30 @@
 #include "user_interface.h"
 #include "mem.h"
 #include "eagle_soc.h"
+#include "stdio.h"
 
 #include "roomba.h"
 #include "mqtt_commands.h"
 
+#define DEVICE_ID	"123"
+#define DEVICE_NAME	"roomba_woonkamer"
+
+
 MQTT_Client mqttClient;
 
-void wifiConnectCb(uint8_t status)
+void ICACHE_FLASH_ATTR mqtt_advertise(MQTT_Client* client){
+	struct ip_info ipconfig;
+	wifi_get_ip_info(STATION_IF, &ipconfig);
+
+	//assemble advertise string
+	char advertise_str[150];
+
+	sprintf(advertise_str, "advertise %s %s %s", DEVICE_ID, DEVICE_NAME, ipconfig.ip);
+	MQTT_Publish(client, MQTT_ROOMBA_STATUS_TOPIC, "advertise ", 6, 0, 0);
+
+}
+
+void ICACHE_FLASH_ATTR wifiConnectCb(uint8_t status)
 {
 	if(status == STATION_GOT_IP){
 		MQTT_Connect(&mqttClient);
@@ -52,15 +69,14 @@ void wifiConnectCb(uint8_t status)
 		MQTT_Disconnect(&mqttClient);
 	}
 }
-void mqttConnectedCb(uint32_t *args)
+void ICACHE_FLASH_ATTR mqttConnectedCb(uint32_t *args)
 {
 	MQTT_Client* client = (MQTT_Client*)args;
 	INFO("MQTT: Connected\r\n");
 
 	MQTT_Subscribe(client, MQTT_ROOMBA_CMD_TOPIC, 0);
 
-	MQTT_Publish(client, MQTT_ROOMBA_STATUS_TOPIC, "started", 6, 0, 0);
-
+	mqtt_advertise(client);
 }
 
 void mqttDisconnectedCb(uint32_t *args)
