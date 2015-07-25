@@ -11,7 +11,7 @@ void roomba_dock(void);
 void roomba_clean(void);
 void roomba_sleep(void);
 void roomba_motors(char *);
-void roomba_play_song(char *);
+void roomba_play_dixie_song(void);
 void roomba_program_songs(void);
 
 #endif

@@ -11,11 +11,16 @@
 #include "roomba.h"
 #include "uart.h"
 
+void roomba_send_command(char command){
+	uart_tx_one_char(command);
+	os_delay_us(1000);
+}
 
 void roomba_startup(void) {
 	os_printf("startup");
-	uart_tx_one_char(UART0, START);
-	uart_tx_one_char(UART0, CONTROL);
+	roomba_send_command(START);
+	roomba_send_command(SAFE);
+
 	os_delay_us(30000);
 }
 
@@ -43,26 +48,31 @@ void roomba_wakeup(void) {
 
 void roomba_dock(void) {
     roomba_startup();
-    uart_tx_one_char(UART0, DOCK);
+    roomba_send_command(DOCK);
 }
 
 void roomba_clean(void) {
     roomba_startup();
-    uart_tx_one_char(UART0, CLEAN);
+    roomba_send_command(CLEAN);
+}
+
+void roomba_spot_clean(void){
+	roomba_startup();
+	roomba_send_command(SPOT);
 }
 
 void roomba_sleep(void) {
 	roomba_startup();
-	uart_tx_one_char(UART0, POWER);
-}
-
-void roomba_motors(char * data){
-	roomba_startup();
-	uart_tx_one_char(UART0, MOTORS);
-	uart_tx_one_char(UART0, data);
+	roomba_send_command(POWER);
 }
 
 #if 0
+void roomba_motors(char * data){
+	roomba_startup();
+	roomba_send_command(MOTORS);
+	roomba_send_command(data);
+}
+
 void roomba_go_forward(void) {
     roomba_drive(speed, 0x8000);
 }
@@ -85,55 +95,52 @@ void roomba_stop(void) {
 
 void roomba_drive(unsigned int velocity, unsigned int radius) {
     roomba_startup();
-    uart_tx_one_char(UART0, DRIVE);
-    uart_tx_one_char(UART0, velocity / 256);
-    uart_tx_one_char(UART0, velocity);
-    uart_tx_one_char(UART0, radius / 256);
-    uart_tx_one_char(UART0, radius);
+    uart_tx_one_char(DRIVE);
+    uart_tx_one_char(velocity / 256);
+    uart_tx_one_char(velocity);
+    uart_tx_one_char(radius / 256);
+    uart_tx_one_char(radius);
 }
 #endif
 
 void roomba_program_songs(){
     roomba_startup();
-	//start csi
-    //uart_tx_one_char(UART0, 128);
-    //in safe mode
-    //uart_tx_one_char(UART0, 131);
-    uart_tx_one_char(UART0, SONG);				//define a song
-    uart_tx_one_char(UART0, SONG_GENERAL_LEE);	//at position 0
-    uart_tx_one_char(UART0, 12);				//song is 12 notes long
 
-    uart_tx_one_char(UART0, 64);
-    uart_tx_one_char(UART0, 8);
-    uart_tx_one_char(UART0, 62);
-    uart_tx_one_char(UART0, 8);
+    roomba_send_command(SONG);				//define a song
+    roomba_send_command(SONG_GENERAL_LEE);	//at position 0
+    roomba_send_command(12);				//song is 12 notes long
 
-    uart_tx_one_char(UART0, 60);
-    uart_tx_one_char(UART0, 32);
-    uart_tx_one_char(UART0, 60);
-    uart_tx_one_char(UART0, 32);
-    uart_tx_one_char(UART0, 60);
-    uart_tx_one_char(UART0, 16);
-    uart_tx_one_char(UART0, 61);
-    uart_tx_one_char(UART0, 16);
-    uart_tx_one_char(UART0, 62);
-    uart_tx_one_char(UART0, 16);
-    uart_tx_one_char(UART0, 63);
-    uart_tx_one_char(UART0, 16);
+    roomba_send_command(64);
+    roomba_send_command(8);
+    roomba_send_command(62);
+    roomba_send_command(8);
 
-    uart_tx_one_char(UART0, 64);
-    uart_tx_one_char(UART0, 32);
-    uart_tx_one_char(UART0, 64);
-    uart_tx_one_char(UART0, 32);
-    uart_tx_one_char(UART0, 64);
-    uart_tx_one_char(UART0, 32);
-    uart_tx_one_char(UART0, 62);
-    uart_tx_one_char(UART0, 32);
+    roomba_send_command(60);
+    roomba_send_command(32);
+    roomba_send_command(60);
+    roomba_send_command(32);
+    roomba_send_command(60);
+    roomba_send_command(16);
+    roomba_send_command(61);
+    roomba_send_command(16);
+    roomba_send_command(62);
+    roomba_send_command(16);
+    roomba_send_command(63);
+    roomba_send_command(16);
+
+    roomba_send_command(64);
+    roomba_send_command(32);
+    roomba_send_command(64);
+    roomba_send_command(32);
+    roomba_send_command(64);
+    roomba_send_command(32);
+    roomba_send_command(62);
+    roomba_send_command(32);
 }
 
-void roomba_play_song( char * song ){
+void roomba_play_dixie_song(){
 	roomba_startup();
 
-	uart_tx_one_char(UART0, PLAY);		//play song
-    uart_tx_one_char(UART0, *song);		//song
+	roomba_send_command(PLAY);		//play song
+	roomba_send_command(SONG_GENERAL_LEE);		//song
 }

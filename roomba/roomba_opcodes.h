@@ -11,7 +11,7 @@
 	// Roomba ROI opcodes
     #define START               128  // 0
     #define BAUD                129  // 1
-    #define CONTROL             130  // 0
+    //#define CONTROL             130  // 0 DEPRECATED!
     #define SAFE                131  // 0
     #define FULL                132  // 0
     #define POWER               133  // 0

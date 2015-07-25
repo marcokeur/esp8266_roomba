@@ -38,7 +38,7 @@
 #include "user_interface.h"
 #include "mem.h"
 #include "eagle_soc.h"
-#include "stdio.h"
+//#include "stdio.h"
 
 #include "roomba.h"
 #include "mqtt_commands.h"
@@ -49,15 +49,20 @@
 
 MQTT_Client mqttClient;
 
+void ICACHE_FLASH_ATTR publish_roomba_status(MQTT_Client* client, char * message){
+	MQTT_Publish(client, MQTT_ROOMBA_STATUS_TOPIC, message, strlen(message), 0, 0);
+}
+
 void ICACHE_FLASH_ATTR mqtt_advertise(MQTT_Client* client){
 	struct ip_info ipconfig;
 	wifi_get_ip_info(STATION_IF, &ipconfig);
 
 	//assemble advertise string
-	char advertise_str[150];
+	char advertise_str[] = "advertise 123 huiskamer 192.168.1.101";
 
-	sprintf(advertise_str, "advertise %s %s %s", DEVICE_ID, DEVICE_NAME, ipconfig.ip);
-	MQTT_Publish(client, MQTT_ROOMBA_STATUS_TOPIC, "advertise ", 6, 0, 0);
+	//sprintf(advertise_str, "advertise %s %s %s", DEVICE_ID, DEVICE_NAME, ipconfig.ip);
+
+	MQTT_Publish(client, MQTT_ROOMBA_STATUS_TOPIC, advertise_str, strlen(advertise_str), 0, 0);
 
 }
 
@@ -114,7 +119,6 @@ void get_command(char * buff, char ** command)
         if( p != NULL){
         	// Found the delimiter, get next char
             p++;
-            os_printf("Found command 0x%X\n", *p);
             *command = p;
             break;
         }else{
@@ -126,8 +130,8 @@ void get_command(char * buff, char ** command)
 
 void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const char *data, uint32_t data_len)
 {
-	char *topicBuf = (char*)os_zalloc(topic_len+1),
-			*dataBuf = (char*)os_zalloc(data_len+1);
+	char *topicBuf = (char*)os_zalloc(topic_len+1);
+	char *dataBuf = (char*)os_zalloc(data_len+1);
 
 	MQTT_Client* client = (MQTT_Client*)args;
 
@@ -139,34 +143,28 @@ void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const cha
 
 	INFO("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
 
-	if(strEquals(topicBuf, MQTT_ROOMBA_CMD_TOPIC) == 0){
+	if(strEquals(topicBuf, MQTT_ROOMBA_CMD_TOPIC)){
 		//compare the first token with known commands
 		if(strEquals(dataBuf, MQTT_ROOMBA_CMD_WAKEUP)){
 			roomba_wakeup();
 		}else if(strEquals(dataBuf, MQTT_ROOMBA_CMD_CLEAN)){
 			roomba_clean();
+			publish_roomba_status(client, "cleaning");
+		}else if(strEquals(dataBuf, MQTT_ROOMBA_CMD_SPOT_CLEAN)){
+			roomba_spot_clean();
+			publish_roomba_status(client, "spot_cleaning");
 		}else if(strEquals(dataBuf, MQTT_ROOMBA_CMD_DOCK)){
 			roomba_dock();
+			publish_roomba_status(client, "docked");
+			//todo when are we docked??
 		}else if(strEquals(dataBuf, MQTT_ROOMBA_CMD_SLEEP)){
 			roomba_sleep();
-		}else if(strStartsWith(dataBuf, MQTT_ROOMBA_CMD_MOTORS)){		//controls the cleaning motors (main brush, vaccuum, side brush)
-			//get the param
-			char *command;
-			get_command(dataBuf, &command);
-
-			os_printf("Command is: 0x%X\n", *command);
-
-			roomba_motors(command);
+			publish_roomba_status(client, "sleeping");
 		}else if(strStartsWith(dataBuf, MQTT_ROOMBA_CMD_PLAY_SONG)){
 			//make sure the songs are programmed
 			roomba_program_songs();
 
-			//get the param
-			char *command;
-			get_command(dataBuf, &command);
-
-			os_printf("Command is: 0x%X\n", *command);
-			roomba_play_song(command);
+			roomba_play_dixie_song();
 		}else{
 			os_printf("Unknown command received: %s at topic %s\n", dataBuf, topicBuf);
 		}
@@ -179,6 +177,8 @@ void mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const cha
 
 void user_init(void)
 {
+	system_set_os_print(0);
+
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 	os_delay_us(1000000);
 
@@ -189,8 +189,8 @@ void user_init(void)
 
     //Set GPIO2 to output mode
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
-    //Set GPIO2 low
-    gpio_output_set(0, ROOMBA_WAKEUP_PIN, ROOMBA_WAKEUP_PIN, 0);
+    //Set GPIO2 high
+    gpio_output_set(ROOMBA_WAKEUP_PIN, 0, ROOMBA_WAKEUP_PIN, 0);
 
 	MQTT_InitConnection(&mqttClient, sysCfg.mqtt_host, sysCfg.mqtt_port, sysCfg.security);
 	//MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
